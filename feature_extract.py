@@ -23,7 +23,8 @@
 from utils import *
 
 import pandas as pd
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
+import random
 
 def testMain(args):
     """
@@ -33,8 +34,8 @@ def testMain(args):
     accelerator = Accelerator(fp16=args.fp16)
 
     accelerator.print(f'torch.cuda.is_available() = {torch.cuda.is_available()}')
-    tokenizer = loadTokenizer(args)
-    model = loadModel(args)
+    tokenizer = loadTokenizerWE(args)
+    model = loadModelWE(args)
     model = accelerator.prepare(model)
 
     model.eval()
@@ -53,33 +54,11 @@ def testDataAndModel(args):
     """
     accelerator = Accelerator(fp16=args.fp16)
     accelerator.print(f'torch.cuda.is_available() = {torch.cuda.is_available()}')
-    model = loadModel(args)
 
-    tokenizer = loadTokenizer(args)
-    dss = loadDataset(args)
-    pdss = preprocessDataset(args, dss, tokenizer)
-    """
-        For reference:
-        >>> pdss
-        DatasetDict({
-            user: Dataset({
-                features: ['user_id', 'gender', 'occupation_titles', 'interests', 'recreation_names', 'input_ids', 'token_type_ids', 'attention_mask', 'gender_one_hot'],
-                num_rows: 130566
-            })
-            item: Dataset({
-                features: ['course_id', 'course_name', 'course_price', 'teacher_id', 'teacher_intro', 'groups', 'sub_groups', 'topics', 'course_published_at_local', 'description', 'will_learn', 'required_tools', 'recommended_background', 'target_group', 'input_ids', 'token_type_ids', 'attention_mask'],
-                num_rows: 728
-            })
-            subgroup: Dataset({
-                features: ['subgroup_id', 'subgroup_name'],
-                num_rows: 91
-            })
-            chapter: Dataset({
-                features: ['course_id', 'chapter_no', 'chapter_id', 'chapter_name', 'chapter_item_id', 'chapter_item_no', 'chapter_item_name', 'chapter_item_type', 'video_length_in_seconds'],
-                num_rows: 21290
-            })
-        })
-    """
+    # model = loadModel(args)
+    # tokenizer = loadTokenizer(args)
+    # dss = loadDataset(args)
+    # pdss = preprocessDataset(args, dss, tokenizer)
 
     # note that pdss is a dataset, not dataloader, thus cannot be prepared
     model = accelerator.prepare(model)
@@ -92,6 +71,21 @@ def testDataAndModel(args):
     print(last_hidden_states[:, 0, :])
     print(last_hidden_states[:, 0, :].shape)        # (1, 768)
 
+
 if __name__ == '__main__':
     args = parse_args()
-    testDataAndModel(args)
+    # testDataAndModel(args)
+
+    accelerator = Accelerator(fp16=args.fp16)
+    accelerator.print(f'torch.cuda.is_available() = {torch.cuda.is_available()}')
+
+    dss = loadDataset(args)
+    pdss = preprocessDataset(args, dss)
+
+    df = pd.read_csv('../hahow/data/train.csv')
+    eds = makeUserItemExamplesDataset(dss, df)
+    # fdss = makeFeatureDataset(args, accelerator, pdss)
+    fdss = loadUserItemFeatureDataset(args)
+    user_embed, user_map, item_embed, item_map = makeUserItemEmbedding(fdss)
+    dataloader = makeUserItemDataloader(args, eds, user_embed, user_map, item_embed, item_map, is_train=True)
+    

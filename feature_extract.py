@@ -71,7 +71,6 @@ def testDataAndModel(args):
     print(last_hidden_states[:, 0, :])
     print(last_hidden_states[:, 0, :].shape)        # (1, 768)
 
-
 if __name__ == '__main__':
     args = parse_args()
     # testDataAndModel(args)
@@ -79,13 +78,28 @@ if __name__ == '__main__':
     accelerator = Accelerator(fp16=args.fp16)
     accelerator.print(f'torch.cuda.is_available() = {torch.cuda.is_available()}')
 
+    
     dss = loadDataset(args)
+    print(dss)
+    exit()
     pdss = preprocessDataset(args, dss)
+    
+    # Do those 2 separately!!!! Comment one and uncomment another, run this script twice
+    # If you uncomment those 2 at the same time GPU RAM will not be enough!
 
-    df = pd.read_csv('../hahow/data/train.csv')
-    eds = makeUserItemExamplesDataset(dss, df)
-    # fdss = makeFeatureDataset(args, accelerator, pdss)
-    fdss = loadUserItemFeatureDataset(args)
-    user_embed, user_map, item_embed, item_map = makeUserItemEmbedding(fdss)
-    dataloader = makeUserItemDataloader(args, eds, user_embed, user_map, item_embed, item_map, is_train=True)
+    # ---1---
+    # df = pd.read_csv('../hahow/data/train.csv')
+    # eds = makeUserItemExamplesDataset(dss, df)
+    # eds.save_to_disk('eds.hf')
+    # -------
+    # eds = loadUserItemExamplesDataset(args)
+
+    # ---2---
+    fdss = makeUserItemFeatureDataset(args, accelerator, pdss)
+    fdss.save_to_disk('fdss.hf')
+    # -------
+    # fdss = loadUserItemFeatureDataset(args)
+
+    # user_embed, user_map, item_embed, item_map = makeUserItemEmbedding(fdss)
+    # train_dataloader = makeUserItemDataloader(args, eds, user_embed, user_map, item_embed, item_map, is_train=True)
     

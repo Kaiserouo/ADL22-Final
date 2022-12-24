@@ -59,7 +59,7 @@ class ArgumentManager:
             help="Number of hidden layers inside EncodingModel",
         )
         group.add_argument(
-            "--tt_p_dropout", type=int, default=0.1,
+            "--tt_p_dropout", type=float, default=0.1,
             help="Dropout probability of EncodingModel",
         )
         group.add_argument(
@@ -87,12 +87,36 @@ class ArgumentManager:
             help="Mapping between subgroup and index. i.e. subgroups.csv",
         )
         group.add_argument(
+            "--test_item_seen_file", type=str, default=None,
+            help="i.e. test_seen.csv",
+        )
+        group.add_argument(
+            "--test_item_unseen_file", type=str, default=None,
+            help="i.e. test_unseen.csv",
+        )
+
+    @staticmethod
+    def saveLoadArguments(parser):
+        group = parser.add_argument_group('Saving & Loading Files')
+        group.add_argument(
             "--load_feature_ds", type=str, default=None,
             help="Feature dataset loading path",
         )
         group.add_argument(
             "--load_useritem_example_ds", type=str, default=None,
             help="User item example dataset loading path",
+        )
+        group.add_argument(
+            "--load_tt_model_dir", type=str, default=None,
+            help="Load directory for two-towel model. Used when predicting or continuing training",
+        )
+        group.add_argument(
+            "--save_tt_model_dir", type=str, default=None,
+            help="Save directory for two-towel model, and its parameters",
+        )
+        group.add_argument(
+            "--save_rec_path", type=str, default=None,
+            help="Save path for recommendation result. Should be a directory",
         )
 
     @staticmethod
@@ -107,7 +131,7 @@ class ArgumentManager:
     def trainingArguments(parser):
         group = parser.add_argument_group('Training')
         group.add_argument(
-            "--train_batch_size", type=int, default=8,
+            "--train_batch_size", type=int, default=512,
             help="Training batch size",
         )
         group.add_argument(
@@ -118,6 +142,23 @@ class ArgumentManager:
             "--tt_ns_w", type=float, default=0.1,
             help="Weight given to negative sample in weighted matrix factorization loss function",
         )
+        group.add_argument(
+            "--num_epochs", type=int, default=10,
+            help="Number of training epochs",
+        )
+        group.add_argument(
+            "--learning_rate", type=float, default=1e-3,
+            help="Learning rate",
+        )
+
+    @staticmethod
+    def taskArguments(parser):
+        group = parser.add_argument_group('Tasks, must-have')
+        group.add_argument(
+            "--task", type=str, default="train",
+            help="Task specifier, default to 'train'.",
+            choices=["train", "predict"]
+        )
 
     @staticmethod
     def getAllFnLs():
@@ -126,8 +167,10 @@ class ArgumentManager:
             ArgumentManager.wwModelArguments,
             ArgumentManager.ttModelArguments,
             ArgumentManager.fileArguments,
+            ArgumentManager.saveLoadArguments,
             ArgumentManager.preprocessArguments,
             ArgumentManager.trainingArguments,
+            ArgumentManager.taskArguments,
         ]
 
 def parse_args(fn_ls=None):
@@ -184,6 +227,29 @@ def loadTokenizerWE(args):
     return tokenizer
 
 def loadDataset(args):
+    """
+        Load raw datasets, directly from csv files. IDs are strings
+        For reference:
+        >>> loadDataset(args)
+        DatasetDict({
+            user: Dataset({
+                features: ['user_id', 'gender', 'occupation_titles', 'interests', 'recreation_names'],
+                num_rows: 130566
+            })
+            item: Dataset({
+                features: ['course_id', 'course_name', 'course_price', 'teacher_id', 'teacher_intro', 'groups', 'sub_groups', 'topics', 'course_published_at_local', 'description', 'will_learn', 'required_tools', 'recommended_background', 'target_group'],
+                num_rows: 728
+            })
+            subgroup: Dataset({
+                features: ['subgroup_id', 'subgroup_name'],
+                num_rows: 91
+            })
+            chapter: Dataset({
+                features: ['course_id', 'chapter_no', 'chapter_id', 'chapter_name', 'chapter_item_id', 'chapter_item_no', 'chapter_item_name', 'chapter_item_type', 'video_length_in_seconds'],
+                num_rows: 21290
+            })
+        })
+    """
     data_files = {
         'user': args.user_file,
         'item': args.item_file,
@@ -243,7 +309,7 @@ def preprocessItemExamples(examples, tokenizer, max_length, subgroup_map, chapte
         preprocess course, used for ds['item'].map()
         subgroup_map: string -> index, 0-indexing!!!!!
         chapter map: item_id -> all chapter name as a string
-        course_feature: log(price)+1 || onehot(subgroup) || embed(
+        course_feature: log(price + 1) || onehot(subgroup) || embed(
             course_name || sub_groups || topics || will_learn || required_tools || recommended_background 
             || target_group || concat(chapter_item_name)
         )
@@ -289,7 +355,7 @@ def preprocessItemExamples(examples, tokenizer, max_length, subgroup_map, chapte
     model_inputs = tokenizer(inputs, max_length=max_length, padding="max_length", truncation=True)
 
     # other
-    model_inputs['course_price'] = torch.log(torch.Tensor(examples['course_price'])) + 1
+    model_inputs['course_price'] = torch.log(torch.Tensor(examples['course_price']) + 1)
 
     model_inputs['subgroup_one_hot'] = subgroup_one_hot
 
@@ -299,7 +365,7 @@ def preprocessDataset(args, dss, tokenizer=None):
     """
         preprocess datasets
         
-        dss: contain at least [user, item, subgroup, chapter]
+        dss: contain at least [user, item, subgroup, chapter]. IDs are strings
         For reference:
         >>> pdss
         DatasetDict({
@@ -339,27 +405,30 @@ def preprocessDataset(args, dss, tokenizer=None):
         )
     chapter_map = defaultdict(str, {course_id: ','.join(ls) for course_id, ls in chapter_map.items()})
     
-    dss['user'] = dss['user'].map(
+    pdss = DatasetDict()
+    pdss['user'] = dss['user'].map(
         lambda x: preprocessUserExamples(x, tokenizer, args.max_length),
-        batched=True
+        batched=True,
+        desc="preprocessDataset: User"
     )
-    dss['item'] = dss['item'].map(
+    pdss['item'] = dss['item'].map(
         lambda x: preprocessItemExamples(x, tokenizer, args.max_length, subgroup_map, chapter_map),
-        batched=True
+        batched=True,
+        desc="preprocessDataset: Item"
     )
 
-    dss['user'].set_format(
+    pdss['user'].set_format(
         type="torch", 
         columns=["input_ids", "token_type_ids", "attention_mask", "gender_one_hot"],
         output_all_columns=True
     )
-    dss['item'].set_format(
+    pdss['item'].set_format(
         type="torch", 
         columns=["input_ids", "token_type_ids", "attention_mask", "subgroup_one_hot", "course_price"],
         output_all_columns=True
     )
 
-    return dss
+    return pdss
 
 def toBertInput(inputs, to_device=None):
     """
@@ -388,6 +457,7 @@ def makeUserItemExamplesDataset(dss, df, neg_portion=0.5):
             this can be set to 0 to avoid making any negative examples
 
         return a dataset containing [user_id, item_id, label (0 or 1)], not sorted in any way
+        IDs are strings
     """
     user_ids = dss['user']['user_id']
     item_ids = dss['item']['course_id']
@@ -427,7 +497,7 @@ def makeUserItemFeatureDataset(args, accelerator, pdss):
         make user and item feature vectors, i.e. actually go through stuff because I
         don't want to train bert for now. Will add an `embed` column, which is the feature vector
         
-        note that user_id and item_id is still str
+        IDs are still strings
 
         pdss: from preprocessDataset()
 
@@ -456,7 +526,7 @@ def makeUserItemFeatureDataset(args, accelerator, pdss):
 
     def itemMap(examples, model, accelerator):
         """
-            course_feature = log(price)+1 || onehot(subgroup) || embed(
+            course_feature = log(price + 1) || onehot(subgroup) || embed(
                 course_name || sub_groups || topics || will_learn || required_tools || recommended_background 
                 || target_group || concat(chapter_item_name)
             )
@@ -483,13 +553,15 @@ def makeUserItemFeatureDataset(args, accelerator, pdss):
         lambda x: userMap(x, model, accelerator),
         batched=True,
         batch_size=24,
-        remove_columns=pdss['user'].column_names
+        remove_columns=pdss['user'].column_names,
+        desc="makeUserItemFeatureDataset: User"
     )
     ds_dict['item'] = pdss['item'].map(
         lambda x: itemMap(x, model, accelerator),
         batched=True,
         batch_size=8,
-        remove_columns=pdss['item'].column_names
+        remove_columns=pdss['item'].column_names,
+        desc="makeUserItemFeatureDataset: Item"
     )
     return ds_dict
 
@@ -549,7 +621,8 @@ def makeUserItemDataloader(args, eds, user_embed, user_map, item_embed, item_map
         return ret
 
     ds = eds.map(
-        embedMap, batched=True, remove_columns=eds.column_names
+        embedMap, batched=True, remove_columns=eds.column_names,
+        desc="makeUserItemDataloader"
     )
 
     ds.set_format(type="torch", columns=ds.column_names, output_all_columns=True)

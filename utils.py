@@ -79,6 +79,10 @@ class ArgumentManager:
             help="Item / course feature file. i.e. courses.csv",
         )
         group.add_argument(
+            "--train_item_file", type=str, default=None,
+            help="Train item file. i.e. train.csv",
+        )
+        group.add_argument(
             "--chapter_file", type=str, default=None,
             help="Chapter for course. i.e. course_chapter_items.csv",
         )
@@ -109,6 +113,14 @@ class ArgumentManager:
         group.add_argument(
             "--load_tt_model_dir", type=str, default=None,
             help="Load directory for two-towel model. Used when predicting or continuing training",
+        )
+        group.add_argument(
+            "--save_eds", type=str, default=None,
+            help="Save path for user-item example dataset",
+        )
+        group.add_argument(
+            "--save_fdss", type=str, default=None,
+            help="Save path for user-item feature datasets",
         )
         group.add_argument(
             "--save_tt_model_dir", type=str, default=None,
@@ -153,11 +165,16 @@ class ArgumentManager:
 
     @staticmethod
     def taskArguments(parser):
-        group = parser.add_argument_group('Tasks, must-have')
+        group = parser.add_argument_group("Tasks specifier, since I didn't separate everything into its own script.")
         group.add_argument(
-            "--task", type=str, default="train",
+            "--two_towel_task", type=str, default="train",
             help="Task specifier, default to 'train'.",
             choices=["train", "predict"]
+        )
+        group.add_argument(
+            "--feature_extract_task", type=str, default="train",
+            help="Task specifier, default to 'eds'.",
+            choices=["eds", "fdss"]
         )
 
     @staticmethod

@@ -266,6 +266,7 @@ def mainUserItemPredicting(args):
     cos_sim = lambda A, B: F.normalize(A) @ F.normalize(B).t()
 
     # rank
+    accelerator.print(f'{colorama.Fore.BLUE}[*] Ranking on {args.load_tt_model_dir}...{colorama.Fore.RESET}')
     fdss['user'].set_format(type="torch", columns=["embed"], output_all_columns=True)
     dataloader = DataLoader(fdss['user'], batch_size=4096)
     rec_map = dict()    # user_id -> list[item_id]
@@ -283,7 +284,7 @@ def mainUserItemPredicting(args):
 
 if __name__ == '__main__':
     args = parse_args()
-    if args.task == 'train':
+    if args.two_towel_task == 'train':
         mainUserItemTraining(args)
-    if args.task == 'predict':
+    if args.two_towel_task == 'predict':
         mainUserItemPredicting(args)

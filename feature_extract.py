@@ -80,23 +80,23 @@ if __name__ == '__main__':
 
     
     dss = loadDataset(args)
-    print(dss)
-    exit()
     pdss = preprocessDataset(args, dss)
     
     # Do those 2 separately!!!! Comment one and uncomment another, run this script twice
     # If you uncomment those 2 at the same time GPU RAM will not be enough!
 
     # ---1---
-    # df = pd.read_csv('../hahow/data/train.csv')
-    # eds = makeUserItemExamplesDataset(dss, df)
-    # eds.save_to_disk('eds.hf')
+    if args.feature_extract_task == 'eds':
+        df = pd.read_csv(args.train_item_file)
+        eds = makeUserItemExamplesDataset(dss, df)
+        eds.save_to_disk(args.save_eds)
     # -------
     # eds = loadUserItemExamplesDataset(args)
 
     # ---2---
-    fdss = makeUserItemFeatureDataset(args, accelerator, pdss)
-    fdss.save_to_disk('fdss.hf')
+    if args.feature_extract_task == 'fdss':
+        fdss = makeUserItemFeatureDataset(args, accelerator, pdss)
+        fdss.save_to_disk(args.save_fdss)
     # -------
     # fdss = loadUserItemFeatureDataset(args)
 

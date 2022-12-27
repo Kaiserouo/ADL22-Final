@@ -1,5 +1,5 @@
-# MODEL_PATH="./models/def_w02_ep10"  # will put the result in this tt_model_dir as well
-MODEL_PATH="${1}"  # will put the result in this tt_model_dir as well
+MODEL_PATH="./models/def_w02_ep100"  # will put the result in this tt_model_dir as well
+# MODEL_PATH="${1}"  # will put the result in this tt_model_dir as well
 DATA_PATH="../hahow/data"
 
 python two-towels.py \

@@ -546,6 +546,7 @@ def makeUserItemFeatureDataset(args, accelerator, pdss):
             course_feature = log(price + 1) || onehot(subgroup) || embed(
                 course_name || sub_groups || topics || will_learn || required_tools || recommended_background 
                 || target_group || concat(chapter_item_name)
+                course_name, sub_groups, topics, will_learn, required_tools, recommended_background, target_group, concat(chapter_item_name)
             )
         """
         outputs = model(**toBertInput(examples, to_device=accelerator.device))

@@ -1,0 +1,49 @@
+Args: Namespace(fp16=False, we_model_name_or_path=None, we_config_name=None, we_tokenizer_name=None, tt_dim_hidden=500, tt_n_hidden=2, tt_p_dropout=0.1, tt_dim_encoding=500, user_file=None, item_file=None, train_item_file=None, chapter_file=None, subgroup_file=None, test_item_seen_file=None, test_item_unseen_file=None, load_feature_ds='./fdss.hf', load_useritem_example_ds='./eds.hf', load_tt_model_dir='./models/def_w02_ep30', save_eds=None, save_fdss=None, save_tt_model_dir='./models/def_w02_ep50', save_rec_path=None, max_length=256, train_batch_size=512, eval_batch_size=8, tt_ns_w=0.2, num_epochs=20, learning_rate=0.001, two_towel_task='train', feature_extract_task='train')
+
+- tt_dim_hidden: 500
+- tt_n_hidden: 2
+- tt_p_dropout: 0.1
+- tt_dim_encoding: 500
+
+seen course: 0.03725
+seen subgroup: 0.26056
+unseen course: 0.05915
+unseen subgroup: 0.21787
+
+TwoTowelModel(
+  (user_model): EncodingModel(
+    (model): Sequential(
+      (0): Linear(in_features=772, out_features=500, bias=True)
+      (1): BatchNorm1d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): Dropout(p=0.1, inplace=False)
+      (3): LeakyReLU(negative_slope=0.01)
+      (4): Linear(in_features=500, out_features=500, bias=True)
+      (5): BatchNorm1d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (6): Dropout(p=0.1, inplace=False)
+      (7): LeakyReLU(negative_slope=0.01)
+      (8): Linear(in_features=500, out_features=500, bias=True)
+      (9): BatchNorm1d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (10): Dropout(p=0.1, inplace=False)
+      (11): LeakyReLU(negative_slope=0.01)
+      (12): Linear(in_features=500, out_features=500, bias=True)
+    )
+  )
+  (item_model): EncodingModel(
+    (model): Sequential(
+      (0): Linear(in_features=860, out_features=500, bias=True)
+      (1): BatchNorm1d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): Dropout(p=0.1, inplace=False)
+      (3): LeakyReLU(negative_slope=0.01)
+      (4): Linear(in_features=500, out_features=500, bias=True)
+      (5): BatchNorm1d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (6): Dropout(p=0.1, inplace=False)
+      (7): LeakyReLU(negative_slope=0.01)
+      (8): Linear(in_features=500, out_features=500, bias=True)
+      (9): BatchNorm1d(500, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (10): Dropout(p=0.1, inplace=False)
+      (11): LeakyReLU(negative_slope=0.01)
+      (12): Linear(in_features=500, out_features=500, bias=True)
+    )
+  )
+  (cos_sim): CosineSimilarity()
+)

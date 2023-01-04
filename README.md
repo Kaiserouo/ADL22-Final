@@ -1,6 +1,6 @@
 # ADL22-Final
 
-+ Two-Towel Model
++ Two-Tower Model
   + B08902068 黃政穎
 + Collaborative Filtering
   + R11922139 許洸誠
